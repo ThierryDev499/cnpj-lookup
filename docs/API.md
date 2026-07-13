@@ -59,6 +59,28 @@ pnpm preview
 Sobe um servidor estático em `http://127.0.0.1:5173` apontando pra `dist/`,
 útil pra validar a versão minificada antes de subir.
 
+### Subir pra hospedagem
+
+Depois do `pnpm build`, basta copiar o conteúdo de `dist/` no servidor. Em
+qualquer uma das opções abaixo:
+
+- **FTP/SFTP tradicional** (Hostinger, Locaweb, GoDaddy compartilhado):
+  jogue tudo de `dist/` na pasta `public_html/` ou `www/` via FileZilla ou
+  navegador de arquivos do painel.
+
+- **GitHub Pages / Netlify / Vercel / Cloudflare Pages**: aponte o diretório
+  de publicação pra `dist`. Em GitHub Pages tradicional (branch `gh-pages`),
+  use um workflow GitHub Actions ou `gh-pages -d dist`.
+
+- **VPS** (Nginx, Apache, Caddy, Cloudflare Tunnel): copie `dist/` pro
+  document root (`/var/www/html`, `/usr/share/nginx/html`, etc.).
+
+Como o app é **100% client-side** (não tem backend, a chamada à API vai
+direto do navegador pro `publica.cnpj.ws`), nenhum requisito extra: roda
+em qualquer servidor que sirva HTML estático. HTTPS é altamente recomendado
+em produção (a `publica.cnpj.ws` aceita CORS de qualquer origem, mas
+navegadores podem bloquear `clipboard.writeText` em HTTP).
+
 ---
 
 ## Como usar a API diretamente
@@ -196,6 +218,33 @@ echo $data["razao_social"];
 
 Em produção, troque `file_get_contents` por `curl` se precisar de mais
 controle (timeout, headers, retry).
+
+---
+
+## Como subir esse projeto pro GitHub
+
+Pra você não se perder, fiz o commit inicial já. Faltam só dois passos manuais
+em qualquer terminal:
+
+### 1. Criar o repo vazio no GitHub
+
+Sem readme/`.gitignore`/license (porque já temos tudo isso aqui). Copie a
+URL que o GitHub mostrar (vai ser tipo `https://github.com/SEU-USER/cnpj-lookup.git`).
+
+### 2. Conectar e enviar
+
+```bash
+cd "C:\API CNPJ"
+git remote add origin https://github.com/SEU-USER/cnpj-lookup.git
+git push -u origin main
+```
+
+Vai pedir login. Se for 2FA, use um **Personal Access Token** em vez de senha
+(github.com → Settings → Developer settings → Personal access tokens → Generate
+new token, com escopo `repo`). Cole o token no prompt de senha do `git push`.
+
+Pronto — `main` tá local e remoto em sincronia. Os próximos commits locais
+basta rodar `git push` direto, sem `-u`.
 
 ---
 
