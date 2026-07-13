@@ -182,7 +182,7 @@ O ESLint não está configurado por padrão (não vem no `package.json`), mas se
 | `33.000.167/0001-01` | Petrobras — pode incluir endereço, telefones etc. |
 | `11.111.111/1111-11` | Inválido — vai gerar banner "Erro 400 ao consultar CNPJ" |
 
-> **Importante:** a `publica.cnpj.ws` é aberta mas **limitada em rate** (≈1 req/s por IP). Se começar a retornar 429, espere alguns segundos antes de consultar de novo. O app já trata esse caso com mensagem específica.
+> **Importante:** a `publica.cnpj.ws` é aberta e **gratuita** (sem chave, sem custo), mas **limitada em rate** — **3 requisições por minuto por IP**. Excedeu, recebe `429` e precisa esperar. Veja detalhes em [`docs/API.md`](docs/API.md#limites-conforme-doc-oficial-docscnpjwsreferencia-de-apiapi-publicalimitacoesmd). O app já trata o `429` com mensagem específica.
 
 ### API direta (programaticamente)
 

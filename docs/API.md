@@ -9,7 +9,7 @@ exemplos prontos pra você copiar e adaptar em outros apps, scripts e testes.
 
 A API [`publica.cnpj.ws`](https://publica.cnpj.ws) expõe dados cadastrais de
 empresas brasileiras (CNPJ). É aberta — **não exige autenticação nem chave** —
-e responde em JSON. O rate-limit é compartilhado por IP (~1 req/s).
+e responde em JSON.
 
 | | |
 |---|---|
@@ -18,7 +18,6 @@ e responde em JSON. O rate-limit é compartilhado por IP (~1 req/s).
 | Formato | `application/json` |
 | Headers | `Accept: application/json` (opcional) |
 | Idempotente | sim (consulta, não muta nada) |
-| Rate-limit | ~1 req/s por IP (limite aproximado) |
 
 ---
 
@@ -308,7 +307,7 @@ string numérica sem máscara (`"120000000000"` = R$ 120 bi).
 | `200` | OK | CNPJ encontrado e retornou JSON |
 | `400` | Bad Request | CNPJ não existe ou está inválido |
 | `404` | Not Found | Mesmo acima (varia conforme versão da API) |
-| `429` | Too Many Requests | Rate-limit estourou — espere alguns segundos |
+| `429` | Too Many Requests | Rate-limit estourou — aguarde conforme mensagem |
 
 Esse app já trata todos:
 
@@ -318,6 +317,38 @@ if (res.status === 404) throw new CnpjApiError("CNPJ não encontrado.", 404);
 if (res.status === 429) throw new CnpjApiError("Limite de requisições.", 429);
 if (!res.ok) throw new CnpjApiError(`Erro ${res.status}`, res.status);
 ```
+
+---
+
+## Limites (conforme doc oficial `docs.cnpj.ws/referencia-de-api/api-publica/limitacoes.md`)
+
+- **3 requisições por minuto por IP.** Passou disso, recebe `429` com a
+  mensagem `"Excedido o limite máximo de 3 consultas por minuto. Liberação
+  ocorrerá em…"`. Tem que esperar.
+- **Limite funcional por hora: ~180** (3 × 60).
+- **Penalização:** se o IP emitir **mais de 360 erros `429` em uma hora**,
+  fica bloqueado por mais 1 hora. Persistindo, a penalização renova por
+  mais 1 hora.
+
+Ou seja:
+
+- **Custo:** $0 — a `publica.cnpj.ws` é gratuita e não exige chave.
+- **Autenticação:** nenhuma.
+- **Rate-limit:** existe e é agressivo — **3 req/min por IP**, não 1/s como
+  eu tinha colocado no README inicial. Pra um chefe testando manualmente
+  tudo bem, mas se for pra integrar em produção com vários usuários,
+  vai precisar cache, fila ou assinar a **API Comercial** (`comercial.cnpj.ws`)
+  que tem plano pago.
+
+### O que muda quando 2 pessoas consultam o mesmo CNPJ do mesmo Wi-Fi?
+
+Compartilham o mesmo IP → mesmo rate-limit. Se a sua esposa abrir o app no
+celular enquanto o chefe abre no escritório, o IP do escritório pode bater
+3 req/min tranquilamente; o IP da sua casa se cair em 3 req/min já começa a
+tomar `429`.
+
+Esse app trata 429 e mostra a mensagem específica; o usuário só precisa
+esperar.
 
 ---
 
