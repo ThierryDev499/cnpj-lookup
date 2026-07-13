@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: #f3f4f6;
+    color: #111827;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  * {
+    box-sizing: border-box;
+  }
+  button {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .cnpj-card {
+    @apply rounded-lg border border-border bg-panel shadow-sm;
+  }
+  .cnpj-label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-muted;
+  }
+  .cnpj-key {
+    @apply text-xs font-mono text-muted;
+  }
+  .cnpj-value {
+    @apply text-sm text-text break-words;
+  }
+  .cnpj-input {
+    @apply w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-text
+           placeholder:text-subtle outline-none transition
+           focus:border-accent focus:ring-2 focus:ring-accent/20;
+  }
+  .cnpj-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm
+           font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .cnpj-btn-primary {
+    @apply cnpj-btn bg-accent text-white shadow-sm hover:bg-accentHover
+           disabled:hover:bg-accent;
+  }
+  .cnpj-btn-ghost {
+    @apply cnpj-btn border border-border bg-white text-text hover:bg-surface;
+  }
+  .cnpj-pill {
+    @apply inline-flex items-center rounded-full border border-border bg-surface
+           px-2.5 py-0.5 text-xs font-medium text-muted;
+  }
+  .cnpj-table {
+    @apply w-full border-collapse text-sm;
+  }
+  .cnpj-table th {
+    @apply border-b border-border bg-surface px-3 py-2 text-left align-top
+           text-[11px] font-semibold uppercase tracking-wider text-muted;
+  }
+  .cnpj-table td {
+    @apply border-b border-border px-3 py-2 align-top;
+  }
+}
