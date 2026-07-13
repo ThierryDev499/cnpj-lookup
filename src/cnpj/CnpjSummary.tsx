@@ -205,24 +205,33 @@ export function CnpjSummary({ data }: { data: unknown }) {
     ["E-mail", valueOrEmpty(email)],
     [
       "Inscrições estaduais",
-      Array.isArray(incsRaw) && incsRaw.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {incsRaw.map((i, idx) => {
-            const num = typeof i === "object" && i !== null ? i.numero ?? i.inscricao_estadual : undefined;
-            const uf =
-              typeof i === "object" && i !== null
-                ? typeof i.estado === "object" && i.estado !== null
-                  ? i.estado.sigla ?? i.estado.nome
-                  : i.estado
-                : undefined;
-            return (
-              <span key={idx} className="cnpj-pill">
-                {uf ? `${uf}: ` : ""}
-                {num ?? "—"}
-              </span>
-            );
-          })}
-        </div>
+      Array.isArray(incsRaw) ? (
+        incsRaw.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {incsRaw.map((i, idx) => {
+              const num = typeof i === "object" && i !== null ? i.numero ?? i.inscricao_estadual : undefined;
+              const uf =
+                typeof i === "object" && i !== null
+                  ? typeof i.estado === "object" && i.estado !== null
+                    ? i.estado.sigla ?? i.estado.nome
+                    : i.estado
+                  : undefined;
+              return (
+                <span key={idx} className="cnpj-pill">
+                  {uf ? `${uf}: ` : ""}
+                  {num ?? "—"}
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <span>
+            <span className="cnpj-pill">Isento</span>
+            <span className="ml-2 text-xs text-muted">
+              Empresa sem IE cadastrada (provavelmente optante pelo Simples, MEI ou isento de ICMS).
+            </span>
+          </span>
+        )
       ) : typeof incsRaw === "string" && incsRaw ? (
         incsRaw
       ) : (
