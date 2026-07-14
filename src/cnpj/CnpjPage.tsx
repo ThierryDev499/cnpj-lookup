@@ -154,6 +154,23 @@ export function CnpjPage() {
                 <button
                   type="button"
                   className="cnpj-btn-ghost"
+                  disabled={!requestCnpj || loading}
+                  onClick={() => {
+                    if (!requestCnpj) return;
+                    const digits = onlyDigits(requestCnpj);
+                    window.open(
+                      `https://publica.cnpj.ws/cnpj/${digits}`,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  title="Abre o JSON direto da API publica.cnpj.ws em outra aba"
+                >
+                  Abrir JSON da API ↗
+                </button>
+                <button
+                  type="button"
+                  className="cnpj-btn-ghost"
                   onClick={() => setShowRaw((s) => !s)}
                   aria-expanded={showRaw}
                 >
