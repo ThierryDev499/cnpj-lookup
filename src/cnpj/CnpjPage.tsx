@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CnpjApiError, fetchCnpj } from "./api";
 import { CnpjSummary } from "./CnpjSummary";
 import { JsonValue } from "./JsonValue";
@@ -11,6 +11,12 @@ import {
   onlyDigits,
 } from "./formatters";
 
+const EXAMPLES: Array<{ label: string; cnpj: string }> = [
+  { label: "Banco do Brasil", cnpj: "00000000000191" },
+  { label: "Petrobras", cnpj: "33000167000101" },
+  { label: "Caixa Escolar (sem IE)", cnpj: "11222333000181" },
+];
+
 export function CnpjPage() {
   const [input, setInput] = useState("");
   const [data, setData] = useState<unknown | null>(null);
@@ -18,18 +24,50 @@ export function CnpjPage() {
   const [error, setError] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const [requestCnpj, setRequestCnpj] = useState<string>("");
+  const [autoStarted, setAutoStarted] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   const digits = onlyDigits(input);
   const isValid = digits.length === 14;
   const filledCount = useMemo(() => (data ? countFilled(data) : 0), [data]);
   const rawJson = useMemo(() => (data ? JSON.stringify(data, null, 2) : ""), [data]);
 
+  // Deep-link: /?cnpj=00000000000191 pré-preenche + já consulta
+  useEffect(() => {
+    if (typeof window === "undefined" || autoStarted) return;
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("cnpj");
+    if (!fromQuery) return;
+    const cleaned = onlyDigits(fromQuery);
+    if (cleaned.length !== 14) return;
+    setInput(maskCnpj(cleaned));
+    setAutoStarted(true);
+    // Aguarda o próximo tick pra garantir que o input está montado
+    queueMicrotask(() => handleSubmit());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Foco automático no input ao montar
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Scroll pra resultados quando aparecem
+  useEffect(() => {
+    if (data && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [data]);
+
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
     setData(null);
     setCopied(false);
+    setCopiedSummary(false);
     if (!isValid) {
       setError("Digite um CNPJ válido com 14 dígitos (XX.XXX.XXX/XXXX-XX).");
       return;
@@ -40,6 +78,16 @@ export function CnpjPage() {
       setData(json);
       const est = (json as { cnpj?: string })?.cnpj ?? digits;
       setRequestCnpj(est);
+      // Atualiza a URL sem recarregar a página
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set("cnpj", onlyDigits(est));
+        window.history.replaceState(null, "", u.toString());
+      } catch {
+        // ignore
+      }
+      // Foca o input de novo pra permitir nova consulta fácil
+      inputRef.current?.focus();
     } catch (err) {
       if (err instanceof CnpjApiError) setError(err.message);
       else if (err instanceof Error && err.name === "AbortError") return;
@@ -47,6 +95,24 @@ export function CnpjPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleReset() {
+    setInput("");
+    setData(null);
+    setError(null);
+    setShowRaw(false);
+    setCopied(false);
+    setCopiedSummary(false);
+    setRequestCnpj("");
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete("cnpj");
+      window.history.replaceState(null, "", u.toString());
+    } catch {
+      // ignore
+    }
+    inputRef.current?.focus();
   }
 
   async function handleCopy() {
@@ -60,12 +126,65 @@ export function CnpjPage() {
     }
   }
 
+  function buildPlainTextSummary(): string {
+    if (!data) return "";
+    const d = data as Record<string, unknown>;
+    const est = (d.estabelecimento ?? {}) as Record<string, unknown>;
+    const rows: Array<[string, unknown]> = [
+      ["Razão social", d.razao_social],
+      ["Nome fantasia", (est.nome_fantasia as string) ?? d.nome_fantasia],
+      ["CNPJ", (est.cnpj as string) ?? d.cnpj],
+      ["Tipo", est.tipo],
+      ["Situação cadastral", (est.situacao_cadastral as string) ?? d.situacao],
+      ["Data da situação", (est.data_situacao_cadastral as string) ?? d.data_situacao],
+      ["Capital social", d.capital_social],
+      ["Endereço", est.logradouro],
+      ["Número", est.numero],
+      ["Bairro", est.bairro],
+      ["CEP", est.cep],
+      ["Município/UF", `${(est as { cidade?: { nome?: string } }).cidade?.nome ?? ""} / ${(est as { estado?: { sigla?: string } }).estado?.sigla ?? ""}`],
+      ["Telefone", formatTelefonesSummary(est)],
+      ["E-mail", (est.email as string) ?? d.email],
+    ];
+    return rows
+      .map(([k, v]) => {
+        const text =
+          v === null || v === undefined
+            ? ""
+            : typeof v === "string"
+            ? v
+            : typeof v === "number"
+            ? String(v)
+            : JSON.stringify(v);
+        return text ? `${k}: ${text}` : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  async function handleCopySummary() {
+    const text = buildPlainTextSummary();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedSummary(true);
+      window.setTimeout(() => setCopiedSummary(false), 2000);
+    } catch {
+      setCopiedSummary(false);
+    }
+  }
+
+  function handleExampleClick(cnpj: string) {
+    setInput(maskCnpj(cnpj));
+    inputRef.current?.focus();
+  }
+
   return (
     <div className="min-h-screen bg-bg text-text">
       <header className="border-b border-border bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-white shadow-sm">
               <span className="font-bold">CNPJ</span>
             </div>
             <div>
@@ -97,6 +216,7 @@ export function CnpjPage() {
               CNPJ
             </label>
             <input
+              ref={inputRef}
               id="cnpj"
               inputMode="numeric"
               autoComplete="off"
@@ -132,14 +252,21 @@ export function CnpjPage() {
         {error && (
           <div
             role="alert"
-            className="mt-4 rounded-md border border-danger/30 bg-dangerBg px-4 py-3 text-sm text-danger"
+            className="mt-4 flex items-start justify-between gap-3 rounded-md border border-danger/30 bg-dangerBg px-4 py-3 text-sm text-danger"
           >
-            {error}
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="rounded px-2 py-0.5 text-xs font-medium text-danger/80 hover:bg-danger/10"
+            >
+              ✕
+            </button>
           </div>
         )}
 
         {data !== null && (
-          <div className="mt-8 flex flex-col gap-6">
+          <div ref={resultsRef} className="mt-8 flex flex-col gap-6">
             <div className="cnpj-card flex flex-wrap items-center justify-between gap-3 p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="cnpj-pill">
@@ -147,19 +274,22 @@ export function CnpjPage() {
                   {filledCount === 1 ? "campo preenchido" : "campos preenchidos"}
                 </span>
                 {requestCnpj && (
-                  <span className="cnpj-pill font-mono">{maskCnpj(requestCnpj)}</span>
+                  <span className="cnpj-pill-muted-strong">{maskCnpj(requestCnpj)}</span>
+                )}
+                {data !== null && (
+                  <span className="cnpj-pill-success">✓ Consulta concluída</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="cnpj-btn-ghost"
+                  className="cnpj-btn-ghost text-sm"
                   disabled={!requestCnpj || loading}
                   onClick={() => {
                     if (!requestCnpj) return;
-                    const digits = onlyDigits(requestCnpj);
+                    const d = onlyDigits(requestCnpj);
                     window.open(
-                      `https://publica.cnpj.ws/cnpj/${digits}`,
+                      `https://publica.cnpj.ws/cnpj/${d}`,
                       "_blank",
                       "noopener,noreferrer",
                     );
@@ -170,7 +300,7 @@ export function CnpjPage() {
                 </button>
                 <button
                   type="button"
-                  className="cnpj-btn-ghost"
+                  className="cnpj-btn-ghost text-sm"
                   onClick={() => setShowRaw((s) => !s)}
                   aria-expanded={showRaw}
                 >
@@ -178,7 +308,16 @@ export function CnpjPage() {
                 </button>
                 <button
                   type="button"
-                  className="cnpj-btn-ghost"
+                  className="cnpj-btn-ghost text-sm"
+                  onClick={handleCopySummary}
+                  disabled={!data}
+                  title="Copia os campos principais em texto simples"
+                >
+                  {copiedSummary ? "Copiado ✓" : "Copiar resumo"}
+                </button>
+                <button
+                  type="button"
+                  className="cnpj-btn-ghost text-sm"
                   onClick={handleCopy}
                   disabled={!data}
                 >
@@ -220,13 +359,48 @@ export function CnpjPage() {
         )}
 
         {!data && !loading && !error && (
-          <div className="cnpj-card mt-8 p-10 text-center">
+          <div className="cnpj-card mt-8 p-8 text-center">
             <p className="text-sm text-muted">
               Digite um CNPJ acima para ver o resumo e os dados completos da empresa.
             </p>
             <p className="mt-1 text-xs text-subtle">
               A consulta é feita direto na API pública, sem backend.
             </p>
+            <div className="mt-5">
+              <p className="cnpj-label mb-2">Exemplos pra testar</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex.cnpj}
+                    type="button"
+                    onClick={() => handleExampleClick(ex.cnpj)}
+                    className="cnpj-pill hover:bg-panel hover:text-text"
+                    title={`Pré-preencher com ${maskCnpj(ex.cnpj)}`}
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleReset}
+              className="mt-6 hidden text-xs text-subtle hover:text-muted"
+            >
+              Limpar
+            </button>
+          </div>
+        )}
+
+        {(data !== null || error) && !loading && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="cnpj-btn-ghost text-sm"
+            >
+              Nova consulta
+            </button>
           </div>
         )}
       </main>
@@ -236,6 +410,20 @@ export function CnpjPage() {
       </footer>
     </div>
   );
+}
+
+function formatTelefonesSummary(v: Record<string, unknown>): string {
+  const parts: string[] = [];
+  const pick = (ddd: unknown, tel: unknown) => {
+    const d = ddd ? String(ddd) : "";
+    const t = tel ? String(tel) : "";
+    if (!t) return;
+    parts.push(d ? `(${d}) ${t}` : t);
+  };
+  pick(v.ddd1, v.telefone1);
+  pick(v.ddd2, v.telefone2);
+  pick(v.ddd_fax, v.fax);
+  return parts.join(" · ");
 }
 
 function AllFields({ data }: { data: unknown }) {

@@ -58,6 +58,17 @@ pnpm preview
 Sobe um servidor estático em `http://127.0.0.1:5173` apontando pra `dist/`,
 útil pra validar a versão minificada antes de subir.
 
+### Deep-link `?cnpj=`
+
+O app aceita um CNPJ pré-preenchido na URL e já dispara a consulta:
+
+```
+https://seu-site.com/?cnpj=00000000000191
+```
+
+Útil pra mandar link direto pra um CNPJ específico (e-mail, planilha,
+chat). Aceita com ou sem máscara.
+
 ### Subir pra hospedagem
 
 Depois do `pnpm build`, basta copiar o conteúdo de `dist/` no servidor. Em

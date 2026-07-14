@@ -10,14 +10,20 @@ sem cadastro — abre no navegador, digita o CNPJ e pronto.
 
 - **Consulta direta** à API `https://publica.cnpj.ws/cnpj/{cnpj}` direto do navegador (a API é aberta e não exige chave).
 - **Campo de CNPJ com máscara automática** que valida os 14 dígitos e só habilita o botão "Consultar" quando completo.
-- **Resumo "bonito"** com os campos principais: razão social, nome fantasia, situação cadastral, data da situação, capital social (em `R$`), endereço completo (logradouro/número/complemento, bairro, cidade, UF, CEP), CNAE fiscal + atividade principal, telefones formatados, e-mail e inscrições estaduais (em chips).
+- **Resumo "bonito"** com os campos principais: razão social, nome fantasia, situação cadastral, data da situação, motivo, situação especial, data situação especial, capital social (em `R$`), endereço completo (logradouro/número/complemento, bairro, cidade, UF, CEP), CNAE fiscal + atividade principal, **lista de atividades secundárias** com código, telefones formatados, e-mail e inscrições estaduais (em chips com flag ativa/inativa).
+- **Deep-link** `?cnpj=00000000000191` pré-preenche o input e já consulta automaticamente. URL atualiza com o CNPJ consultado.
+- **Atalhos de UX**: Enter dispara busca, foco automático no input após resposta, scroll automático pros resultados, exemplos clicáveis (Banco do Brasil, Petrobras, Caixa Escolar) pra descobrir rápido.
+- **Botão "Nova consulta"** pra limpar o estado e voltar ao início.
+- **Botão "Copiar resumo"** que copia os campos principais em texto simples (pronto pra colar em e-mail).
+- **Botão "Abrir JSON da API ↗"** que abre `publica.cnpj.ws/cnpj/{cnpj}` em outra aba — facilita ver a resposta crua sem precisar montar `curl`.
 - **Renderização dinâmica de todos os campos** que a API devolveu — incluindo listas de objetos aninhadados (ex.: o array `Socios` do CNPJ raiz do Banco do Brasil tem 46 itens, cada um com CPF/CNPJ, nome, tipo, data de entrada, faixa etária, qualificação, sub-objeto `Pais`, etc.). Tudo é caminhado recursivamente: primitivos viram linhas de tabela, objetos viram blocos colapsáveis com sub-tabela e arrays viram pilhas de cards.
 - **Formatação automática por chave**: CNPJ → `00.000.000/0001-91`, CEP → `00000-000`, telefones → `(11) 99999-9999`, datas ISO → `26/01/2023`, capital social → `R$ 120.000.000.000,00`, booleanos → `Sim`/`Não`.
 - **Botão "Ver JSON bruto"** que abre/fecha a resposta formatada com `JSON.stringify(data, null, 2)` num `<pre>` com scroll.
 - **Botão "Copiar JSON"** que joga a mesma resposta no clipboard (com confirmação visual "Copiado ✓").
 - **Contador de campos preenchidos** que caminha pela estrutura inteira contando só os valores não-vazios (ignora strings vazias, `null` e `undefined`, mas conta mesmo os que estão dentro de arrays/objetos).
+- **Distinção `Isento` vs `Não informado`**: array vazio de IEs = "Isento" (com nota), array ausente/null = "Não informado".
 - **Layout responsivo** — empilha no mobile (375px), divide em duas colunas a partir de `sm:`, e centraliza o conteúdo em `max-w-3xl`.
-- **Estados tratados**: input incompleto, 404, 429, erro de rede, JSON malformado — todos viram banner vermelho discreto com a mensagem específica.
+- **Estados tratados**: input incompleto, 404, 429, erro de rede, JSON malformado — todos viram banner vermelho discreto com botão de fechar.
 
 ---
 

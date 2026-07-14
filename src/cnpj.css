@@ -8,7 +8,10 @@
   }
   body {
     margin: 0;
-    background: #f3f4f6;
+    background:
+      radial-gradient(circle at 80% 0%, rgba(186, 230, 253, 0.35) 0, transparent 35%),
+      radial-gradient(circle at 0% 100%, rgba(219, 234, 254, 0.4) 0, transparent 40%),
+      #f3f4f6;
     color: #111827;
     font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -24,13 +27,16 @@
 
 @layer components {
   .cnpj-card {
-    @apply rounded-lg border border-border bg-panel shadow-sm;
+    @apply rounded-lg border border-border bg-panel shadow-sm transition-shadow;
+  }
+  .cnpj-card:hover {
+    @apply shadow-md;
   }
   .cnpj-label {
     @apply text-[11px] font-semibold uppercase tracking-wider text-muted;
   }
   .cnpj-key {
-    @apply text-xs font-mono text-muted;
+    @apply text-xs font-mono text-muted/90;
   }
   .cnpj-value {
     @apply text-sm text-text break-words;
@@ -46,14 +52,31 @@
   }
   .cnpj-btn-primary {
     @apply cnpj-btn bg-accent text-white shadow-sm hover:bg-accentHover
-           disabled:hover:bg-accent;
+           disabled:hover:bg-accent active:scale-[0.98];
   }
   .cnpj-btn-ghost {
-    @apply cnpj-btn border border-border bg-white text-text hover:bg-surface;
+    @apply cnpj-btn border border-border bg-white text-text hover:bg-surface
+           active:scale-[0.98];
   }
   .cnpj-pill {
     @apply inline-flex items-center rounded-full border border-border bg-surface
            px-2.5 py-0.5 text-xs font-medium text-muted;
+  }
+  .cnpj-pill-accent {
+    @apply inline-flex items-center rounded-full border border-accent/20
+           bg-accent/5 px-2.5 py-0.5 text-xs font-medium text-accent;
+  }
+  .cnpj-pill-success {
+    @apply inline-flex items-center rounded-full border border-emerald-200
+           bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700;
+  }
+  .cnpj-pill-warn {
+    @apply inline-flex items-center rounded-full border border-amber-200
+           bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700;
+  }
+  .cnpj-pill-muted-strong {
+    @apply inline-flex items-center rounded-full border border-border
+           bg-panel px-2.5 py-0.5 text-xs font-mono font-medium text-text;
   }
   .cnpj-table {
     @apply w-full border-collapse text-sm;
@@ -62,7 +85,8 @@
     @apply border-b border-border bg-surface px-3 py-2 text-left align-top
            text-[11px] font-semibold uppercase tracking-wider text-muted;
   }
-  .cnpj-table td {
-    @apply border-b border-border px-3 py-2 align-top;
+  .cnpj-table tr:last-child th,
+  .cnpj-table tr:last-child td {
+    @apply border-b-0;
   }
 }

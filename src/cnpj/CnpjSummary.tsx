@@ -13,6 +13,16 @@ type Endereco = {
   estado?: string;
 };
 
+type CnaeDetalhado = {
+  id?: string;
+  secao?: string;
+  divisao?: string;
+  grupo?: string;
+  classe?: string;
+  subclasse?: string;
+  descricao?: string;
+};
+
 type Estabelecimento = Endereco & {
   ddd1?: string;
   telefone1?: string;
@@ -24,11 +34,21 @@ type Estabelecimento = Endereco & {
   nome_fantasia?: string;
   situacao_cadastral?: string;
   data_situacao_cadastral?: string;
+  data_inicio_atividade?: string;
+  motivo_situacao_cadastral?: string | { descricao?: string };
+  situacao_especial?: string;
+  data_situacao_especial?: string;
+  atividade_principal?: CnaeDetalhado;
+  atividades_secundarias?: CnaeDetalhado[];
   inscricoes_estaduais?: Array<{
     numero?: string;
     inscricao_estadual?: string;
+    ativo?: boolean | string;
+    atualizado_em?: string;
     estado?: string | { sigla?: string; nome?: string };
   }>;
+  tipo?: string;
+  cnpj?: string;
 };
 
 type Cnae = { codigo?: string | number; descricao?: string };
@@ -91,14 +111,25 @@ function formatTelefones(value: unknown): string {
   return "";
 }
 
+function formatCnaeDetalhado(c: CnaeDetalhado | undefined): string {
+  if (!c) return "";
+  const id = c.subclasse ?? c.id ?? c.classe ?? "";
+  const descricao = c.descricao ?? "";
+  if (!id && !descricao) return "";
+  return `${id}${descricao ? ` — ${descricao}` : ""}`;
+}
+
+function formatMotivo(m: string | { descricao?: string } | undefined): string {
+  if (!m) return "";
+  if (typeof m === "string") return m;
+  return m.descricao ?? "";
+}
+
 /** Resumo em formato de definição (label/valor), padrão web. */
 export function CnpjSummary({ data }: { data: unknown }) {
   const d = (data ?? {}) as CnpjJson;
 
   // Endereço pode vir em três lugares (em ordem de prioridade)
-  // 1. objeto `estabelecimento` (o que esta API normalmente devolve)
-  // 2. objeto `endereco` (alguns outros provedores de CNPJ)
-  // 3. campos na raiz (logradouro/municipio/uf/cep)
   const est = (d.estabelecimento ?? {}) as Estabelecimento;
   const end = (d.endereco ?? {}) as Endereco;
 
@@ -139,28 +170,63 @@ export function CnpjSummary({ data }: { data: unknown }) {
     .join(" ")
     .trim();
 
-  // Nome fantasia / situação também podem estar em `estabelecimento`
   const nomeFantasia = d.nome_fantasia ?? est.nome_fantasia;
   const situacao = d.situacao ?? est.situacao_cadastral;
   const dataSituacao = d.data_situacao ?? est.data_situacao_cadastral;
+  const dataInicioAtividade = est.data_inicio_atividade;
+  const tipoEstabelecimento = est.tipo;
+  const cnpjEstab = est.cnpj;
+  const motivoSituacao = est.motivo_situacao_cadastral;
+  const situacaoEspecial = est.situacao_especial;
+  const dataSituacaoEspecial = est.data_situacao_especial;
 
-  // Telefones e e-mail: objeto estabelecimento tem ddd1/telefone1/2; raiz tem telefone/email
   const email = d.email ?? est.email;
   const telefonesRaw = d.telefones ?? est;
 
   const cnaeDesc = d.cnae_fiscal_descricao ?? "";
   const cnaeCodigo = d.cnae_fiscal ?? "";
-  const cnaeAtividade = d.atividade_principal?.[0];
+  const cnaePrincipalRoot = d.atividade_principal?.[0];
+  const cnaePrincipalEstab = est.atividade_principal;
+  const cnaePrincipal = cnaePrincipalEstab
+    ? formatCnaeDetalhado(cnaePrincipalEstab)
+    : cnaePrincipalRoot
+    ? `${cnaePrincipalRoot.codigo ?? ""}${cnaePrincipalRoot.descricao ? ` — ${cnaePrincipalRoot.descricao}` : ""}`
+    : cnaeCodigo || cnaeDesc
+    ? `${cnaeCodigo}${cnaeDesc ? ` — ${cnaeDesc}` : ""}`
+    : "";
+
+  const atividadesSecundarias = est.atividades_secundarias ?? [];
+
   const incsRaw = (d.inscricoes_estaduais ?? est.inscricoes_estaduais) as
-    | Array<{ numero?: string; inscricao_estadual?: string; estado?: string | { sigla?: string; nome?: string } }>
+    | Array<{ numero?: string; inscricao_estadual?: string; ativo?: boolean | string; estado?: string | { sigla?: string; nome?: string } }>
     | string
     | undefined;
 
   const rows: Array<[string, ReactNode]> = [
     ["Razão social", <strong key="rs" className="text-text">{d.razao_social || "—"}</strong>],
     ["Nome fantasia", valueOrEmpty(nomeFantasia)],
+    [
+      "CNPJ",
+      <span key="cnpj" className="font-mono">
+        {cnpjEstab ? autoFormat("cnpj", cnpjEstab) : d.cnpj ? autoFormat("cnpj", d.cnpj) : ""}
+      </span>,
+    ],
+    [
+      "Tipo",
+      valueOrEmpty(tipoEstabelecimento),
+    ],
     ["Situação cadastral", valueOrEmpty(situacao)],
     ["Data da situação", valueOrEmpty(dataSituacao ? autoFormat("data_situacao", dataSituacao) : "")],
+    [
+      "Motivo da situação",
+      valueOrEmpty(formatMotivo(motivoSituacao)),
+    ],
+    ["Situação especial", valueOrEmpty(situacaoEspecial)],
+    [
+      "Data situação especial",
+      valueOrEmpty(dataSituacaoEspecial ? autoFormat("data_situacao_especial", dataSituacaoEspecial) : ""),
+    ],
+    ["Início de atividade", valueOrEmpty(dataInicioAtividade ? autoFormat("data_inicio_atividade", dataInicioAtividade) : "")],
     [
       "Capital social",
       d.capital_social !== undefined && d.capital_social !== ""
@@ -189,17 +255,26 @@ export function CnpjSummary({ data }: { data: unknown }) {
         "—"
       ),
     ],
+    ["Atividade principal (CNAE)", valueOrEmpty(cnaePrincipal)],
     [
-      "CNAE fiscal",
-      cnaeCodigo || cnaeDesc
-        ? `${cnaeCodigo}${cnaeDesc ? ` — ${cnaeDesc}` : ""}`
-        : "",
-    ],
-    [
-      "Atividade principal",
-      cnaeAtividade
-        ? `${cnaeAtividade.codigo ?? ""}${cnaeAtividade.descricao ? ` — ${cnaeAtividade.descricao}` : ""}`
-        : "",
+      "Atividades secundárias",
+      atividadesSecundarias.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          {atividadesSecundarias.map((a, idx) => {
+            const text = formatCnaeDetalhado(a);
+            if (!text) return null;
+            return (
+              <span key={idx} className="text-xs">
+                <strong className="font-mono text-accent/90">{a.subclasse ?? a.id ?? ""}</strong>
+                <span className="text-muted"> · </span>
+                <span>{a.descricao ?? ""}</span>
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <span className="italic text-subtle">Nenhuma cadastrada</span>
+      ),
     ],
     ["Telefone(s)", valueOrEmpty(formatTelefones(telefonesRaw))],
     ["E-mail", valueOrEmpty(email)],
@@ -216,10 +291,17 @@ export function CnpjSummary({ data }: { data: unknown }) {
                     ? i.estado.sigla ?? i.estado.nome
                     : i.estado
                   : undefined;
+              const ativo = typeof i === "object" && i !== null ? i.ativo : undefined;
+              const ativoLabel = ativo === true ? " ativa" : ativo === false ? " inativa" : "";
               return (
-                <span key={idx} className="cnpj-pill">
+                <span
+                  key={idx}
+                  className="cnpj-pill"
+                  title={typeof ativo === "boolean" ? (ativo ? "Ativa" : "Inativa") : ""}
+                >
                   {uf ? `${uf}: ` : ""}
                   {num ?? "—"}
+                  {ativoLabel}
                 </span>
               );
             })}
